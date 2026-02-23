@@ -1,0 +1,2 @@
+Geometry Parameters (r1, r2, shift): [0.09546696 0.33998611 0.05062519]
+Normal Parameters (L1[0], L1[1], hpattern, hs_dbr, hs_SiO2_dbr): [0.974263   0.974263   0.4882405  0.10782679 0.25862069]

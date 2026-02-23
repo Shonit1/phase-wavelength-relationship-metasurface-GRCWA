@@ -1,0 +1,10 @@
+Geometry Parameters (r1, r2, shift): [0.25375658, 0.193637, 0.46638763]
+Normal Parameters (L1[0], L1[1], hpattern, hs_dbr, hs_SiO2_dbr): [0.99943868, 0.99943868, 0.45814751, 0.10782679, 0.25862069]
+
+
+lambda0 = 1.5
+lambdas = 1.491 - 1.504
+
+
+
+at higher nG this is shifted and cubical behaviour is from 1.487 to 1.504
