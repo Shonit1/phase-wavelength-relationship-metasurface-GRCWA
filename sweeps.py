@@ -17,7 +17,7 @@ lambda0 = 1.5
 
 
 
-lambdas = np.linspace(1.5, 1.52, 40)
+lambdas = np.linspace(1.5, 1.52, 10)
 
 
 hs_dbr = lambda0/(4*3.4778)
@@ -25,14 +25,13 @@ hs_SiO2_dbr = lambda0/(4*1.45)
 
 
 
-geometry_params = [0.12040733, 0.01271771, 0.46051845]  # r1, r2, shift
-normal_params = [1.14230889, 1.14230889, 0.61387762, hs_dbr, hs_SiO2_dbr]
+geometry_params = [0.184, 0, 0.394]  # r1, r2, shift
+normal_params = [0.921 ,0.921 ,0.751, hs_dbr, hs_SiO2_dbr]
 
 geometry_func = get_epgrid_double_cylinder_d_new
 
 
-print("Geometry Parameters (r1, r2, shift):", geometry_params)
-print("Normal Parameters (a, a, hpattern, hs_dbr, hs_SiO2_dbr):", normal_params)
+
 
 
 
@@ -44,8 +43,10 @@ L1=L2=a
 
 plot_double_cylinder_xy_from_grid(geometry_params, eps, L1, L2)
 
+
 plot_phase(geometry_func, geometry_params,
                        lambdas, normal_params)  
+
 
 plot_full_spectrum(geometry_func, geometry_params,
                        lambdas, normal_params)
@@ -78,4 +79,21 @@ plot_dual_cylinder_structure(
     hs_dbr
 )
 
+'''
+
+
+'''
+
+lambdas = [1.5,1.52]
+
+
+nG_list = [101,201,301,401,501]
+inverse_list = 1/np.array(nG_list)
+phase_list =[]
+
+phase_list = check_convergence_linear(geometry_params,normal_params,geometry_func,lambdas, nG_list)
+
+
+plt.plot(inverse_list,phase_list)
+plt.show()
 '''

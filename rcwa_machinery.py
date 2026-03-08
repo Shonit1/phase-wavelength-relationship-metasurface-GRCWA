@@ -42,7 +42,7 @@ def rcwa_obj(geometry_func,geometry_params,lam,normal_params,DBR_PAIRS):
 
 
 
-def intensity_obj(geometry_func,geometry_params,lam,normal_params,DBR_PAIRS):
+def intensity_obj(geometry_func,geometry_params,lam,normal_params,DBR_PAIRS,nG):
     
     L10,L20,hpattern,hs_dbr,hsio2_dbr = normal_params
 
@@ -235,6 +235,52 @@ def compute_phase_and_reflectance(geometry_func, geometry_params, lambdas, norma
 
 
 
-
+def compute_phase_nG(geometry_func, geometry_params, lambdas, normal_params, DBR_PAIRS,nG):
     
+    phis = []
+    r_amp = []
+    
+    f = 1 / lambdas
+    obj = rcwa_obj_nG(geometry_func,geometry_params,lambdas,normal_params,DBR_PAIRS,nG)
+    r00 = relection_amplitude_computation(obj)
+    phis.append(np.angle(r00))
+    r_amp.append((np.abs(r00))**2)
+
+
+    return np.unwrap(np.array(phis)),r_amp
+    
+    
+
+
+
+
+def rcwa_obj_nG(geometry_func,geometry_params,lam,normal_params,DBR_PAIRS,nG):
+    
+    L10,L20,hpattern,hs_dbr,hsio2_dbr = normal_params
+
+    L1 = [L10, 0]
+    L2 = [0, L20]
+
+    eps_si = epsilon_lambda(lam)
+    obj = grcwa.obj(nG,L1,L2,1/lam,theta,phi,verbose=0)
+    
+    
+    obj.Add_LayerUniform(0.1, eair)
+    obj.Add_LayerGrid(hpattern, Nx, Ny)
+
+    for _ in range(DBR_PAIRS):
+            obj.Add_LayerUniform(hsio2_dbr, esio2)
+            obj.Add_LayerUniform(hs_dbr, eps_si)
+
+    obj.Add_LayerUniform(0.1, esio2)
+
+    obj.Init_Setup()
+
+    ep = geometry_func(geometry_params, eps_si,L1,L2).flatten()
+    obj.GridLayer_geteps(ep)        
+
+
+    obj.MakeExcitationPlanewave(1, 0, 0, 0)
+
+    return obj
     

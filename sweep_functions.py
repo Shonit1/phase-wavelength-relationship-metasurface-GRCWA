@@ -277,48 +277,39 @@ def sweep_double_cylinder_shift(geometry_func,lambdas, normal_params , geometry_
 
 def check_convergence_linear(geometry_params,normal_params,geometry_func,lambdas, nG_list):
 
-    results = []
+    phase1 = []
 
     for nG in nG_list:
 
         global N_G
         N_G = nG
 
-        phis, Rs, Ts, sums = compute_phase_and_reflectance(
+        phis1, Rs= compute_phase_nG(
             geometry_func,
             geometry_params,
-            lambdas,
+            lambdas[0],
             normal_params,
-            DBR_PAIRS
+            DBR_PAIRS,nG
         )
+        phis2,Rs2 = compute_phase_nG(
+            geometry_func,
+            geometry_params,
+            lambdas[1],
+            normal_params,
+            DBR_PAIRS,nG
+        )
+        phis = phis1 - phis2
 
-        if phis is None:
-            print(f"nG={nG} → Simulation failed")
-            continue
-
-        # unwrap phase
-        phis = np.unwrap(phis)
-
-        # linear fit
-        A, B = np.polyfit(lambdas, phis, 1)
-        phi_fit = A * lambdas + B
-
-        # RMS deviation from linear
-        rms = np.sqrt(np.mean((phis - phi_fit)**2))
-
-        # average reflectance
-        R_avg = np.mean(Rs)
-
-        results.append((nG, A, rms, R_avg))
+        
+        phase1.append(phis)
 
         print(
             f"nG={nG}, "
-            f"slope={A:.3f}, "
-            f"RMS={rms:.4f}, "
-            f"Ravg={R_avg:.4f}"
+            f"delta phi ={phis}"
+            
         )
 
-    return results
+    return phase1
 
 
 

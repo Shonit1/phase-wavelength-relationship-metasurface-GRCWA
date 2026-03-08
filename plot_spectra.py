@@ -8,7 +8,7 @@ from rcwa_machinery import *
 def plot_phase(geometry_func, geometry_params,
                lambdas, normal_params):
 
-    phis, Rs, Ts, sums = compute_phase_and_reflectance(
+    phis, Rs= compute_phase(
         geometry_func,
         geometry_params,
         lambdas,
@@ -173,3 +173,9 @@ def plot_full_structure_xz_intensity(x, z, I, layer_bounds,
     plt.tight_layout()
     plt.savefig(fname, dpi=300)
     plt.show()
+
+
+
+
+
+

@@ -442,3 +442,135 @@ def plot_double_cylinder_xy_from_grid(geometry_params, eps, L1, L2):
     plt.tight_layout()
     plt.show()
 
+
+
+
+
+
+
+def plot_3x3_geometry(pattern, a=1.0, threshold=0.5):
+    pattern = np.array(pattern).reshape(3,3)
+    
+    dx = dy = a/3
+    
+    fig, ax = plt.subplots(figsize=(5,5))
+    
+    for i in range(3):
+        for j in range(3):
+            
+            # Binary decision
+            val = 1 if pattern[i,j] >= threshold else 0
+            
+            color = "black" if val == 1 else "white"
+            
+            rect = plt.Rectangle((i*dx, j*dy),
+                                 dx, dy,
+                                 facecolor=color,
+                                 edgecolor="gray")
+            ax.add_patch(rect)
+    
+    ax.set_xlim(0,a)
+    ax.set_ylim(0,a)
+    ax.set_aspect("equal")
+    ax.set_title("3x3 Metasurface Geometry (Binary)")
+    ax.set_xticks([])
+    ax.set_yticks([])
+    plt.show()
+
+
+
+
+
+  
+
+def plot_3x3_pattern_xz(
+    pattern,
+    a,
+    hpattern,
+    DBR_PAIRS,
+    hsio2_dbr,
+    hs_dbr,
+    threshold=0.5
+):
+    fig, ax = plt.subplots(figsize=(8, 6))
+
+    pattern = np.array(pattern).reshape(3,3)
+
+    z = 0
+
+    # ------------------ COLORS ------------------
+    color_air   = 'lightblue'
+    color_sio2  = 'lightgray'
+    color_si    = 'brown'
+    color_glass = 'lightgreen'
+
+    # ------------------ TOP AIR ------------------
+    h_air_top = 0.1
+    ax.add_patch(plt.Rectangle((0, z), a, h_air_top,
+                 color=color_air, alpha=0.6))
+    z += h_air_top
+
+    # ------------------ PATTERN REGION ------------------
+    dx = a / 3
+
+    # Background air first
+    ax.add_patch(plt.Rectangle((0, z), a, hpattern,
+                 color=color_air, alpha=0.6))
+
+    # Add silicon blocks where pattern exists
+    for i in range(3):
+        for j in range(3):   # include full grid info
+            if pattern[i, j] >= threshold:
+                # In x–z slice we project along y
+                # If ANY cell in column i is Si → fill column
+                ax.add_patch(plt.Rectangle((i*dx, z),
+                             dx, hpattern,
+                             color=color_si))
+
+    z += hpattern
+
+    # ------------------ DBR STACK ------------------
+    for _ in range(DBR_PAIRS):
+
+        # SiO2
+        ax.add_patch(plt.Rectangle((0, z), a, hsio2_dbr,
+                     color=color_sio2, alpha=0.6))
+        z += hsio2_dbr
+
+        # Si
+        ax.add_patch(plt.Rectangle((0, z), a, hs_dbr,
+                     color=color_si, alpha=0.6))
+        z += hs_dbr
+
+    # Bottom spacer
+    h_bottom = 0.1
+    ax.add_patch(plt.Rectangle((0, z), a, h_bottom,
+                 color=color_glass, alpha=0.6))
+    z += h_bottom
+
+    # ------------------ LEGEND ------------------
+    legend_patches = [
+        mpatches.Patch(color=color_air, label="Air"),
+        mpatches.Patch(color=color_sio2, label="SiO₂"),
+        mpatches.Patch(color=color_si, label="Silicon"),
+        mpatches.Patch(color=color_glass, label="Glass")
+    ]
+
+    ax.legend(
+        handles=legend_patches,
+        loc="center left",
+        bbox_to_anchor=(1.02, 0.5),
+        borderaxespad=0
+    )
+
+    # ------------------ FORMAT ------------------
+    ax.set_xlim(0, a)
+    ax.set_ylim(0, z)
+    ax.set_xlabel("x (period a)")
+    ax.set_ylabel("z")
+    ax.set_title("3×3 Metasurface Pattern on DBR (x–z plane)")
+    ax.set_aspect('equal')
+    ax.invert_yaxis()
+
+    plt.tight_layout(rect=[0, 0, 0.8, 1])
+    plt.show()

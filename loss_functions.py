@@ -768,8 +768,7 @@ def loss_three_region_polyfit(
     )
 
     if (
-        A1 > 2e2 and
-        A3 > 2e2 and        A2 < 1.8e2
+        loss<0
         ):
         with open(save_file, "a") as f:
             f.write("=====================================\n")
@@ -778,6 +777,7 @@ def loss_three_region_polyfit(
             f.write(f"A1 = {A1:.4e}\n")
             f.write(f"A2 = {A2:.4e}\n")
             f.write(f"A3 = {A3:.4e}\n")
+            f.write(f"loss = {loss:.4e}\n")
             f.write(f"Ravg = {Ravg:.4f}\n\n")
 
         print(">>> Geometry saved (meets cubic + slope criteria)")
@@ -1702,8 +1702,7 @@ def loss_three_region_polyfit_trans(
     )
 
     if (
-        A1 > 2e2 and
-        A3 > 2e2 and        A2 < 1.8e2
+        loss<0
         ):
         with open(save_file, "a") as f:
             f.write("=====================================\n")
@@ -1723,6 +1722,738 @@ def loss_three_region_polyfit_trans(
         f"A3={A3:.3e}, "
         f"min_outer={outer_min:.3e}, "
         f"Tavg={Tavg:.3f}, "
+        f"LOSS={loss:.3f}"
+    )
+
+    return loss
+
+
+
+
+
+
+
+
+
+
+def loss_three_region_quadratic(
+    geometry_func,
+    geometry_params,
+    normal_params,
+    lambdas,
+    DBR_PAIRS,
+    w_outer=1.0,
+    w_center=1.0,
+    w_refl=10.0,
+    save_file="good_quadratic_geometries2.txt"
+):
+
+    phis, Rs = compute_phase(
+        geometry_func,
+        geometry_params,
+        lambdas,
+        normal_params,
+        DBR_PAIRS
+    )
+
+    if phis is None:
+        return 1e6
+    
+    # unwrap phase
+    phis = np.unwrap(phis)
+
+    # ---------- Define Regions ----------
+    mask1 = (lambdas >= 1.49)  & (lambdas < 1.495)
+    mask2 = (lambdas >= 1.495) & (lambdas < 1.5)
+    mask3 = (lambdas >= 1.5)  & (lambdas <= 1.505)
+
+    if not (np.any(mask1)  and np.any(mask3)):
+        return 1e6
+    
+    # ---------- Linear fits in each region ----------
+    A1, B1 = np.polyfit(lambdas[mask1], phis[mask1], 1)
+    A2, B2 = np.polyfit(lambdas[mask2], phis[mask2], 1)
+    A3, B3 = np.polyfit(lambdas[mask3], phis[mask3], 1)
+
+    S1,S2,S3 = A1,A2,A3
+
+    A1 = abs(A1)
+    A2 = abs(A2)
+    A3 = abs(A3)
+
+    outer_min = min(A1, A3)
+
+
+
+    # ---------- Quadratic Fit in Center Region ----------
+    lambda_c = 1.4975   # define your center (or compute from data)
+    mask_all = mask1 | mask3
+    l_center = lambdas[mask_all]
+    phi_center = phis[mask_all]
+
+    shifted = l_center - lambda_c
+
+    # Design matrix for: A(x-xc)^2 + B(x-xc) + C
+    # ---------- Pure Quadratic (No Linear Term) ----------
+    Xq = np.vstack([
+        shifted**2,
+        np.ones_like(shifted)
+    ]).T
+
+    coeffs_q, _, _, _ = np.linalg.lstsq(Xq, phi_center, rcond=None)
+
+    Aq, Cq = coeffs_q
+
+    phi_quad_fit = Aq*shifted**2 + Cq
+
+    quad_error = np.mean((phi_center - phi_quad_fit)**2)
+
+
+
+
+
+
+    # ---------- Reflectance penalty ----------
+    Ravg = np.mean(Rs)
+    refl_penalty = np.mean(np.maximum(0, 0.8 - Ravg) ** 2)
+
+    # ---------- Sign Penalty ----------
+    sign_penalty = 0.0
+    w_sign = 5.0  # tune this
+    if S1 * S3 > 0:   # same sign
+        sign_penalty = (abs(S1) + abs(S3))  # magnitude-based penalty
+
+
+    # ---------- Final Loss ----------
+    loss = (
+    -w_outer * outer_min
+    #+ w_center * A2
+    + w_refl * refl_penalty
+    + w_sign * sign_penalty)
+
+    if (
+        loss<0 
+        ):
+        with open(save_file, "a") as f:
+            f.write("=====================================\n")
+            f.write(f"geometry_params = {geometry_params}\n")
+            f.write(f"normal_params   = {normal_params}\n")
+            f.write(f"S1 = {S1:.4e}\n")
+            #f.write(f"S2 = {S2:.4e}\n")
+            f.write(f"S3 = {S3:.4e}\n")
+            f.write(f"quadratic_error = {quad_error:.4e}\n")
+            f.write(f"loss = {loss:.4e}\n")
+            f.write(f"Ravg = {Ravg:.4f}\n\n")
+
+        print(">>> Geometry saved (meets cubic + slope criteria)")
+
+
+    print(
+        f"S1={S1:.3e}, "
+        #f"S2={S2:.3e}, "
+        f"S3={S3:.3e}, "
+        f"sign_penalty={sign_penalty:.3e}, "
+        f"quadratic_error={quad_error:.3e}, "
+        f"Ravg={Ravg:.3f}, "
+        f"LOSS={loss:.3f}"
+    )
+
+    return loss
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+'''This is somewhat good for cubic geometries.'''
+
+
+def loss_three_region_polyfit_trans_freq(
+    geometry_func,
+    geometry_params,
+    normal_params,
+    lambdas,
+    DBR_PAIRS,
+    w_outer=1.0,
+    w_center=1.0,
+    w_trans=10.0,
+    save_file="good_cubic_geometries2.txt"
+):
+
+    c = 3e8
+
+    phis, Rs = compute_phase(
+        geometry_func, geometry_params, lambdas, normal_params, DBR_PAIRS
+    )
+
+    if phis is None:
+        return 1e6
+
+    phis = np.unwrap(phis)
+
+    # ---------- Convert wavelength → frequency ----------
+    lambdas_m = lambdas * 1e-6
+    omegas = 2*np.pi*c / lambdas_m
+
+    # ---------- Normalize frequency axis ----------
+    omega0 = np.mean(omegas)
+    wshift = (omegas - omega0) / omega0   # normalized frequency
+
+    # ---------- Define Regions ----------
+    mask1 = (lambdas >= 1.49)  & (lambdas < 1.495)
+    mask2 = (lambdas >= 1.495) & (lambdas < 1.5)
+    mask3 = (lambdas >= 1.5)   & (lambdas <= 1.505)
+
+    if not (np.any(mask1) and np.any(mask2) and np.any(mask3)):
+        return 1e6
+
+    # ---------- Linear fits using normalized frequency ----------
+    S1, _ = np.polyfit(wshift[mask1], phis[mask1], 1)
+    S2, _ = np.polyfit(wshift[mask2], phis[mask2], 1)
+    S3, _ = np.polyfit(wshift[mask3], phis[mask3], 1)
+
+    A1 = abs(S1)
+    A2 = abs(S2)
+    A3 = abs(S3)
+
+    outer_min = min(A1, A3)
+
+    # ---------- Reflectance penalty ----------
+    Ravg = np.mean(Rs)
+    refl_penalty = np.mean(np.maximum(0, 0.8 - Ravg)**2)
+
+    # ---------- Constraint penalties ----------
+    sign_penalty = 0
+    magnitude_penalty = 0
+    center_penalty = 0
+
+    # SAME sign condition
+    if S1 * S3 < 0:
+        sign_penalty += 10
+
+    # OPPOSITE sign condition
+    if S1 * S2 > 0:
+        sign_penalty += 10
+
+    # slope magnitude match
+    magnitude_penalty = ((abs(S3) - abs(S1))/abs(S1))**2
+
+    # S2 within ±20% of S1
+    ratio = abs(S2)/abs(S1)
+
+    if ratio < 0.8 or ratio > 1.2:
+        center_penalty = (ratio - 1)**2
+
+    # ---------- Quadratic Fit ----------
+    quad_coeffs = np.polyfit(wshift, phis, 2)
+
+    Aq = quad_coeffs[0]
+    Bq = quad_coeffs[1]
+    Cq = quad_coeffs[2]
+
+    phi_quad = np.polyval(quad_coeffs, wshift)
+    quad_error = np.mean((phis - phi_quad)**2)
+
+    # ---------- Cubic Fit ----------
+    cubic_coeffs = np.polyfit(wshift, phis, 3)
+
+    Ac = cubic_coeffs[0]
+    Bc = cubic_coeffs[1]
+    Cc = cubic_coeffs[2]
+    Dc = cubic_coeffs[3]
+
+    phi_cubic = np.polyval(cubic_coeffs, wshift)
+    cubic_error = np.mean((phis - phi_cubic)**2)
+
+    # ---------- Final Loss ----------
+    loss = (
+        -w_outer * outer_min
+        + w_center * A2
+        + w_trans * refl_penalty
+        + 50 * magnitude_penalty
+        + 50 * center_penalty
+        + sign_penalty
+    )
+
+    # ---------- Save geometry if conditions satisfied ----------
+    if (
+    (
+        (S1 * S3 > 0) and
+        (S1 * S2 < 0) and
+        (
+            (0.8 <= abs(S2)/abs(S1) <= 1.2) or
+            (0.8 <= abs(S2)/abs(S3) <= 1.2)
+        )
+    )
+    or (loss < 0)
+):
+
+        with open(save_file, "a") as f:
+
+            f.write("=====================================\n")
+            f.write(f"geometry_params = {geometry_params}\n")
+            f.write(f"normal_params   = {normal_params}\n\n")
+
+            f.write(f"S1 = {S1:.4f}\n")
+            f.write(f"S2 = {S2:.4f}\n")
+            f.write(f"S3 = {S3:.4f}\n\n")
+
+            f.write("---- Quadratic Fit ----\n")
+            f.write(f"Aq = {Aq:.4e}\n")
+            f.write(f"Bq = {Bq:.4e}\n")
+            f.write(f"Cq = {Cq:.4e}\n")
+            f.write(f"quadratic_error = {quad_error:.4e}\n\n")
+
+            f.write("---- Cubic Fit ----\n")
+            f.write(f"Ac = {Ac:.4e}\n")
+            f.write(f"Bc = {Bc:.4e}\n")
+            f.write(f"Cc = {Cc:.4e}\n")
+            f.write(f"Dc = {Dc:.4e}\n")
+            f.write(f"cubic_error = {cubic_error:.4e}\n\n")
+
+            f.write(f"Ravg = {Ravg:.4f}\n\n")
+
+        print(">>> Geometry saved")
+
+    print(
+        f"S1={S1:.3f}, "
+        f"S2={S2:.3f}, "
+        f"S3={S3:.3f}, "
+        f"quad_err={quad_error:.3e}, "
+        f"cubic_err={cubic_error:.3e}, "
+        f"Ravg={Ravg:.3f}, "
+        f"LOSS={loss:.3f}"
+    )
+
+    return loss
+
+
+
+
+
+'''This is somewhat good for quadratic geometries'''
+
+
+
+def loss_three_region_quadfit_trans_freq(
+    geometry_func,
+    geometry_params,
+    normal_params,
+    lambdas,
+    DBR_PAIRS,
+    w_outer=1.0,
+    w_trans=10.0,
+    save_file="good_quadratic_geometries3.txt"
+):
+
+    c = 3e8
+
+    phis, Rs = compute_phase(
+        geometry_func, geometry_params, lambdas, normal_params, DBR_PAIRS
+    )
+
+    if phis is None:
+        return 1e6
+
+    phis = np.unwrap(phis)
+
+    # ---------- Convert wavelength → frequency ----------
+    lambdas_m = lambdas * 1e-6
+    omegas = 2*np.pi*c / lambdas_m
+
+    # ---------- Normalize frequency axis ----------
+    omega0 = np.mean(omegas)
+    wshift = (omegas - omega0) / omega0
+
+    # ---------- Define Regions ----------
+    mask1 = (lambdas >= 1.49) & (lambdas < 1.4975)
+    mask3 = (lambdas >= 1.4975) & (lambdas <= 1.505)
+
+    if not (np.any(mask1) and np.any(mask3)):
+        return 1e6
+
+    # ---------- Linear fits ----------
+    S1, _ = np.polyfit(wshift[mask1], phis[mask1], 1)
+    S3, _ = np.polyfit(wshift[mask3], phis[mask3], 1)
+
+    A1 = abs(S1)
+    A3 = abs(S3)
+
+    outer_min = min(A1, A3)
+
+    # ---------- Reflectance penalty ----------
+    Ravg = np.mean(Rs)
+    refl_penalty = np.mean(np.maximum(0, 0.8 - Ravg)**2)
+
+    # ---------- Constraint penalties ----------
+    sign_penalty = 0
+
+    # Opposite sign condition
+    if S1 * S3 > 0:
+        sign_penalty += 10
+
+    # slope magnitude matching
+    magnitude_penalty = (abs(A3 - A1) / max(A1, 1e-9))**2
+
+    # optional balance term to help optimizer
+    outer_balance = abs(A1 - A3)
+
+    # ---------- Quadratic Fit ----------
+    quad_coeffs = np.polyfit(wshift, phis, 2)
+
+    Aq = quad_coeffs[0]
+    Bq = quad_coeffs[1]
+    Cq = quad_coeffs[2]
+
+    phi_quad = np.polyval(quad_coeffs, wshift)
+    quad_error = np.mean((phis - phi_quad)**2)
+
+    # ---------- Cubic Fit ----------
+    cubic_coeffs = np.polyfit(wshift, phis, 3)
+
+    Ac = cubic_coeffs[0]
+    Bc = cubic_coeffs[1]
+    Cc = cubic_coeffs[2]
+    Dc = cubic_coeffs[3]
+
+    phi_cubic = np.polyval(cubic_coeffs, wshift)
+    cubic_error = np.mean((phis - phi_cubic)**2)
+
+    # ---------- Final Loss ----------
+    loss = (
+        -w_outer * outer_min
+        + w_trans * refl_penalty
+        + 50 * magnitude_penalty
+        + 0.1 * outer_balance
+        + sign_penalty
+    )
+
+    # ---------- Save geometry if condition satisfied ----------
+    save_condition = (
+        (S1 * S3 < 0) and
+        (abs(A1 - A3) <= 10)
+    )
+
+    if save_condition:
+
+        with open(save_file, "a") as f:
+
+            f.write("=====================================\n")
+            f.write(f"geometry_params = {geometry_params}\n")
+            f.write(f"normal_params   = {normal_params}\n\n")
+
+            f.write(f"S1 = {S1:.4f}\n")
+            f.write(f"S3 = {S3:.4f}\n\n")
+
+            f.write("---- Quadratic Fit ----\n")
+            f.write(f"Aq = {Aq:.4e}\n")
+            f.write(f"Bq = {Bq:.4e}\n")
+            f.write(f"Cq = {Cq:.4e}\n")
+            f.write(f"quadratic_error = {quad_error:.4e}\n\n")
+
+            f.write("---- Cubic Fit ----\n")
+            f.write(f"Ac = {Ac:.4e}\n")
+            f.write(f"Bc = {Bc:.4e}\n")
+            f.write(f"Cc = {Cc:.4e}\n")
+            f.write(f"Dc = {Dc:.4e}\n")
+            f.write(f"cubic_error = {cubic_error:.4e}\n\n")
+
+            f.write(f"Ravg = {Ravg:.4f}\n\n")
+
+        print(">>> Geometry saved (opposite slopes, similar magnitude)")
+
+    print(
+        f"S1={S1:.3f}, "
+        f"S3={S3:.3f}, "
+        f"|S1|-|S3|={abs(A1-A3):.3f}, "
+        f"quad_err={quad_error:.3e}, "
+        f"cubic_err={cubic_error:.3e}, "
+        f"Ravg={Ravg:.3f}, "
+        f"LOSS={loss:.3f}"
+    )
+
+    return loss
+
+
+
+
+
+
+
+def loss_three_region_quadfit2_trans_freq(
+    geometry_func,
+    geometry_params,
+    normal_params,
+    lambdas,
+    DBR_PAIRS,
+    w_trans=10.0,
+    save_file="good_quadratic_geometries4.txt"
+):
+
+    import numpy as np
+
+    c = 3e8
+
+    phis, Rs = compute_phase(
+        geometry_func, geometry_params, lambdas, normal_params, DBR_PAIRS
+    )
+
+    if phis is None:
+        return 1e6
+
+    phis = np.unwrap(phis)
+
+    # ---------- Convert wavelength → frequency ----------
+    lambdas_m = lambdas * 1e-6
+    omegas = 2*np.pi*c / lambdas_m
+
+    # ---------- Normalize frequency axis ----------
+    omega0 = np.mean(omegas)
+    wshift = (omegas - omega0) / omega0
+
+    # ---------- Define Regions ----------
+    mask1 = (lambdas >= 1.49) & (lambdas < 1.4975)
+    mask3 = (lambdas >= 1.4975) & (lambdas <= 1.505)
+
+    if not (np.any(mask1) and np.any(mask3)):
+        return 1e6
+
+    # ---------- Linear slope fits ----------
+    S1, _ = np.polyfit(wshift[mask1], phis[mask1], 1)
+    S3, _ = np.polyfit(wshift[mask3], phis[mask3], 1)
+
+    A1 = abs(S1)
+    A3 = abs(S3)
+
+    outer_min = min(A1, A3)
+
+    # ---------- Reflectance penalty ----------
+    Ravg = np.mean(Rs)
+    refl_penalty = np.mean(np.maximum(0, 0.8 - Ravg)**2)
+
+    # ---------- Opposite slope constraint ----------
+    sign_penalty = 0
+    if S1 * S3 > 0:
+        sign_penalty += 10
+
+    # ---------- Encourage symmetric slopes ----------
+    magnitude_penalty = (abs(A3 - A1) / max(A1, 1e-9))**2
+
+    # ---------- Polynomial Fits ----------
+    quad_coeffs = np.polyfit(wshift, phis, 2)
+    cubic_coeffs = np.polyfit(wshift, phis, 3)
+
+    Aq = quad_coeffs[0]
+    Ac = cubic_coeffs[0]
+
+    # ---------- Cubic vs Quadratic ratio ----------
+    eps = 1e-9
+    cubic_ratio = abs(Ac) / (abs(Aq) + eps)
+
+    # ---------- Final Loss ----------
+    loss = (
+        - 2.0 * outer_min            # maximize slope magnitude
+        + 100 * cubic_ratio          # penalize cubic relative to quadratic
+        + w_trans * refl_penalty
+        + 20 * magnitude_penalty
+        + sign_penalty
+    )
+
+    # ---------- Save geometry condition ----------
+    save_condition = (
+        (S1 * S3 < 0) and
+        (abs(A1 - A3) <= 10) and
+        (cubic_ratio < 0.1)          # cubic < 10% of quadratic
+    )
+
+    if save_condition:
+
+        with open(save_file, "a") as f:
+
+            f.write("=====================================\n")
+            f.write(f"geometry_params = {geometry_params}\n")
+            f.write(f"normal_params   = {normal_params}\n\n")
+
+            f.write(f"S1 = {S1:.4f}\n")
+            f.write(f"S3 = {S3:.4f}\n\n")
+
+            f.write("---- Polynomial Coefficients ----\n")
+            f.write(f"Aq (quadratic) = {Aq:.4e}\n")
+            f.write(f"Ac (cubic)     = {Ac:.4e}\n")
+            f.write(f"cubic_ratio    = {cubic_ratio:.4e}\n\n")
+
+            f.write(f"Ravg = {Ravg:.4f}\n\n")
+
+        print(">>> Geometry saved (quadratic-dominant phase)")
+
+    print(
+        f"S1={S1:.3f}, "
+        f"S3={S3:.3f}, "
+        f"Aq={Aq:.3e}, "
+        f"Ac={Ac:.3e}, "
+        f"ratio={cubic_ratio:.3e}, "
+        f"Ravg={Ravg:.3f}, "
+        f"LOSS={loss:.3f}"
+    )
+
+    return loss
+
+
+
+
+
+
+
+def loss_center_symmetric_quadratic(
+    geometry_func,
+    geometry_params,
+    normal_params,
+    lambdas,
+    DBR_PAIRS,
+    center_lambda=1.496,
+    w_slope=50,
+    w_sym=20,
+    w_refl=10,
+    save_file="good_quadratic_geometries_centered.txt"
+):
+
+    import numpy as np
+
+    c = 3e8
+
+    phis, Rs = compute_phase(
+        geometry_func, geometry_params, lambdas, normal_params, DBR_PAIRS
+    )
+
+    if phis is None:
+        return 1e6
+
+    phis = np.unwrap(phis)
+
+    # ---------- Convert wavelength → frequency ----------
+    lambdas_m = lambdas * 1e-6
+    omegas = 2*np.pi*c / lambdas_m
+
+    # ---------- Normalize frequency axis ----------
+    omega0 = np.mean(omegas)
+    wshift = (omegas - omega0) / omega0
+
+    # ---------- Split left/right around center ----------
+    mask_left = lambdas < center_lambda
+    mask_right = lambdas > center_lambda
+
+    if not (np.any(mask_left) and np.any(mask_right)):
+        return 1e6
+
+    # ---------- Linear fits (slope on each side) ----------
+    S_left, _ = np.polyfit(wshift[mask_left], phis[mask_left], 1)
+    S_right, _ = np.polyfit(wshift[mask_right], phis[mask_right], 1)
+
+    A_left = abs(S_left)
+    A_right = abs(S_right)
+
+    # ---------- Slope magnitude matching ----------
+    slope_match_penalty = (A_left - A_right)**2
+
+    # ---------- Opposite sign condition ----------
+    sign_penalty = 0
+    if S_left * S_right > 0:
+        sign_penalty = 20
+
+    # ---------- Symmetry penalty ----------
+    # enforce φ(λ0+Δ) ≈ φ(λ0−Δ)
+
+    sym_error = []
+
+    for i in range(len(lambdas)):
+        lam = lambdas[i]
+
+        mirror = 2*center_lambda - lam
+
+        idx = np.argmin(np.abs(lambdas - mirror))
+
+        sym_error.append((phis[i] - phis[idx])**2)
+
+    symmetry_penalty = np.mean(sym_error)
+
+    # ---------- Reflectance penalty ----------
+    Ravg = np.mean(Rs)
+    refl_penalty = np.mean(np.maximum(0, 0.8 - Rs)**2)
+
+    # ---------- Quadratic fit (diagnostic only) ----------
+    quad_coeffs = np.polyfit(wshift, phis, 2)
+    phi_quad = np.polyval(quad_coeffs, wshift)
+    quad_error = np.mean((phis - phi_quad)**2)
+
+    Aq, Bq, Cq = quad_coeffs
+
+    # ---------- Cubic fit (diagnostic only) ----------
+    cubic_coeffs = np.polyfit(wshift, phis, 3)
+    phi_cubic = np.polyval(cubic_coeffs, wshift)
+    cubic_error = np.mean((phis - phi_cubic)**2)
+
+    Ac, Bc, Cc, Dc = cubic_coeffs
+
+    # ---------- Final Loss ----------
+    loss = (
+        w_slope * slope_match_penalty
+        + sign_penalty
+        + w_sym * symmetry_penalty
+        + w_refl * refl_penalty
+    )
+
+    # ---------- Save geometry if good ----------
+    save_condition = (
+        (S_left * S_right < 0)
+        and (abs(A_left - A_right) < 0.1)
+        and (symmetry_penalty < 0.01)
+    )
+
+    if save_condition:
+
+        with open(save_file, "a") as f:
+
+            f.write("=====================================\n")
+            f.write(f"geometry_params = {geometry_params}\n")
+            f.write(f"normal_params   = {normal_params}\n\n")
+
+            f.write(f"S_left  = {S_left:.4f}\n")
+            f.write(f"S_right = {S_right:.4f}\n")
+            f.write(f"|S_left|-|S_right| = {abs(A_left-A_right):.4f}\n\n")
+
+            f.write("---- Quadratic Fit ----\n")
+            f.write(f"Aq = {Aq:.4e}\n")
+            f.write(f"Bq = {Bq:.4e}\n")
+            f.write(f"Cq = {Cq:.4e}\n")
+            f.write(f"quadratic_error = {quad_error:.4e}\n\n")
+
+            f.write("---- Cubic Fit ----\n")
+            f.write(f"Ac = {Ac:.4e}\n")
+            f.write(f"Bc = {Bc:.4e}\n")
+            f.write(f"Cc = {Cc:.4e}\n")
+            f.write(f"Dc = {Dc:.4e}\n")
+            f.write(f"cubic_error = {cubic_error:.4e}\n\n")
+
+            f.write(f"Ravg = {Ravg:.4f}\n\n")
+
+        print(">>> Geometry saved (center symmetric quadratic)")
+
+    print(
+        f"S_left={S_left:.3f}, "
+        f"S_right={S_right:.3f}, "
+        f"|S_left|-|S_right|={abs(A_left-A_right):.3f}, "
+        f"sym={symmetry_penalty:.3e}, "
+        f"quad_err={quad_error:.3e}, "
+        f"cubic_err={cubic_error:.3e}, "
+        f"Ravg={Ravg:.3f}, "
         f"LOSS={loss:.3f}"
     )
 

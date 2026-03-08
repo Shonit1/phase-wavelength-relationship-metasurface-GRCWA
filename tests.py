@@ -22,18 +22,17 @@ hs_SiO2_dbr = lambda0/(4*1.45)
 
 
 
-lambdas = np.linspace(1.5, 1.52, 40)
+lambdas = np.linspace(1.492, 1.500, 30)
 
 
 
-geometry_params, normal_params = [0.12040733, 0.01271771, 0.46051845 ], [1.14230889, 1.14230889, 0.61387762, 0.10782679, 0.25862069]
+geometry_params, normal_params = [0.812099  , 0.00745107 ,0.96478054, 0.00106903, 0.21928054, 0.85516766,
+ 0.49742152, 0.93752275, 0.62043157],[0.99955911, 0.99955911, 0.45000077 , hs_dbr, hs_SiO2_dbr]
+geometry_func = get_epgrid_3x3
 
-geometry_func = get_epgrid_double_cylinder_d_new
 
 
 
-print("Geometry Parameters (r1, r2, shift):", geometry_params  )
-print("Normal Parameters (L1[0], L1[1], hpattern, hs_dbr, hs_SiO2_dbr):", normal_params)
 
 
 phis, Rs = compute_phase(
@@ -100,6 +99,39 @@ phi_cubic_fit = (
 
 # RMS error
 rms_cubic = np.sqrt(np.mean((phis - phi_cubic_fit)**2))
+
+
+
+###Quadratic
+
+# -----------------------------------------
+# Choose center point
+# -----------------------------------------
+xc = 1.493   # or np.mean(lambdas)
+
+# Shift variable
+x_shift = lambdas - xc
+
+# Fit quadratic in shifted variable
+coeffs_quad = np.polyfit(x_shift, phis, 2)
+
+B2, B1, B0 = coeffs_quad   # (λ-xc)^2, (λ-xc), constant
+
+# Reconstruct fitted phase
+phi_quad_fit = (
+    B2 * x_shift**2 +
+    B1 * x_shift +
+    B0
+)
+
+# RMS error
+rms_quad = np.sqrt(np.mean((phis - phi_quad_fit)**2))
+
+print("Centered quadratic coefficients:")
+print("B2 ((λ-xc)^2) =", B2)
+print("B1 ((λ-xc))   =", B1)
+print("B0            =", B0)
+print("RMS error (quadratic) =", rms_quad)
 
 
 
@@ -234,11 +266,11 @@ print("RMS =", rms)
 plt.figure(figsize=(8,6))
 plt.plot(lambdas, phis, label="RCWA Phase", linewidth=2)
 #plt.plot(lambdas, phi_sqrt_fit, '--', label="A√(λ-λc) + B Fit", linewidth=2)
-plt.plot(lambdas, phi_lin_fit, ':', label=f"Aλ + B Fit, A={A_lin:.3f}, RMS={rms_lin:.3e}", linewidth=2)
+#plt.plot(lambdas, phi_lin_fit, ':', label=f"Aλ + B Fit, A={A_lin:.3f}, RMS={rms_lin:.3e}", linewidth=2)
 #plt.plot(lambdas, phi_inv_fit, '-.', label="A/(λ-λc) + B Fit", linewidth=2)
-#plt.plot(lambdas, phi_cubic_fit, '-.', label="Cubic Fit", linewidth=2)
+plt.plot(lambdas, phi_cubic_fit, '-.', label="Cubic Fit", linewidth=2)
 #plt.plot(lambdas, phi_model, '--', label="A/(λ-λc) + Dλ + B Fit", linewidth=2)
-
+#plt.plot(lambdas,phi_quad_fit,'-',label = "Quadratic Fit",linewidth = 2)
 plt.xlabel("Wavelength (µm)")
 plt.ylabel("Phase (rad)")
 plt.title("Phase Fit Comparison")
