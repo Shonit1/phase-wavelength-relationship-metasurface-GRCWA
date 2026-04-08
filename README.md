@@ -64,7 +64,11 @@ pip install numpy matplotlib cma grcwa
 
 
 
-Note - I have included various geometric_functions(geometry_functions.py) that I didnt get time to explore. You can just insert the various functions in the script and explore various phase vs wavelength relationships. Just need to insert the function and setup the optimization accordingly.
+
+
+## Note
+
+I have included various geometric_functions(geometry_functions.py) that I didnt get time to explore. You can just insert the various functions in the script and explore various phase vs wavelength relationships. Just need to insert the function and setup the optimization accordingly.
 
 You will see geometry_params and normal_params which are essential for simulating the geometry. When you change the geometry function shape, you just need to modify geometry_params. For example for double cylinder geometry_params = [r1,r2,d]. Normal_params contain information about the lattice, height of metasurface and dbr. If you just change the geometry function, you just need to change the geometry_params, the height of metasurface,dbr and lattice constants wont change. 
 
