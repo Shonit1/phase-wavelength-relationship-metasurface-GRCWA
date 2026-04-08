@@ -55,6 +55,35 @@ It allows:
 
 ---
 
+## ⚠️ Important Note on Geometry Usage
+
+- Additional geometry functions are provided in `geometry_functions.py`.  
+  These were not fully explored, but can be used to experiment with different structure designs and study their phase vs wavelength behavior.
+
+- To use a new geometry:
+  1. Replace the geometry function in your script  
+  2. Update the corresponding `geometry_params`  
+  3. Run the simulation or optimization as usual  
+
+- `geometry_params` define the shape of the structure and must be modified when changing the geometry.
+
+  Example:
+  - Double cylinder → `geometry_params = [r1, r2, d]`
+
+- `normal_params` contain:
+  - Lattice constants  
+  - Metasurface height  
+  - DBR parameters  
+
+  These typically remain unchanged when switching between geometries.
+
+👉 In short:
+- Change **geometry function + geometry_params** → to explore new designs  
+- Keep **normal_params mostly fixed** → unless modifying the overall structure
+
+
+
+
 ## ⚙️ Installation
 
 Core install required libraries:
@@ -66,11 +95,9 @@ pip install numpy matplotlib cma grcwa
 
 
 
-## Note
 
-I have included various geometric_functions(geometry_functions.py) that I didnt get time to explore. You can just insert the various functions in the script and explore various phase vs wavelength relationships. Just need to insert the function and setup the optimization accordingly.
 
-You will see geometry_params and normal_params which are essential for simulating the geometry. When you change the geometry function shape, you just need to modify geometry_params. For example for double cylinder geometry_params = [r1,r2,d]. Normal_params contain information about the lattice, height of metasurface and dbr. If you just change the geometry function, you just need to change the geometry_params, the height of metasurface,dbr and lattice constants wont change. 
+
 
 
 
