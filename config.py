@@ -76,7 +76,8 @@ def epsilon_lambda(wavelength, _cache={}):
 
 
     if "interp" not in _cache:
-        data = pd.read_csv("C:\\Users\\ASUS\\Downloads\\Li-293K.csv")
+    
+        data =pd.read_csv("Li-293K.csv")
         wl = data.iloc[:, 0].values
         n = data.iloc[:, 1].values
 
