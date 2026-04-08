@@ -13,12 +13,30 @@ from sweep_functions import *
 import re
 import os
 
+
+'''
+This script is a post-processing + screening tool for optimized geometries
+
+It:
+
+Reads saved geometries from optimization
+Recomputes their phase and reflectance
+Plots results
+Saves each geometry’s performance as an image
+
+'''
+
+
+
+
+
+
 # -----------------------------------
 # USER SETTINGS
 # -----------------------------------
 
-input_file = "good_cubic_geometries2.txt"
-output_folder = "geometry_plots_cubic2"
+input_file = "good_geometries.txt"
+output_folder = "geometry_plots_45"
 
 if not os.path.exists(output_folder):
     os.makedirs(output_folder)
@@ -34,7 +52,7 @@ def parse_geometry_file(filename):
         text = f.read()
 
     geom_blocks = re.findall(
-        r"geometry_params\s*=\s*\[([^\]]+)\].*?normal_params\s*=\s*\[([^\]]+)\]",
+        r"GeometryParams\s*=\s*\[([^\]]+)\].*?normalParams\s*=\s*\[([^\]]+)\]",
         text,
         re.S,
     )
@@ -71,24 +89,21 @@ omega0 = 1.26e15  # rad/s
 wmax = 1.26e15
 wmin = 1.25e15
 
-lambdas = np.linspace(1.49, 1.505, 40)
+lambdas = np.linspace(1.5, 1.52, 40)
 omegas = np.linspace(wmin, wmax, 40)
 
-geometry_func = get_epgrid_3x3
+geometry_func = get_epgrid_double_cylinder_d_new
 # -----------------------------------
 # LOOP THROUGH GEOMETRIES
 # -----------------------------------
 
-import numpy as np
-import matplotlib.pyplot as plt
-import os
 
 # -----------------------------------
 # Convergence settings
 # -----------------------------------
 
-nG_list = [101,201,301,401,501,601,801,1001]
-lambdas1 = [1.49, 1.505]
+nG_list = [101,201,301,401,501,601,701,801,901,1001]
+lambdas1 = [1.5, 1.52]
 
 tol = 0.01   # 1% convergence tolerance
 
@@ -100,7 +115,7 @@ for i, (geometry_params, normal_params) in enumerate(geometries):
     # -----------------------------------
     # Check convergence
     # -----------------------------------
-
+    
     phase_list = check_convergence_linear(
         geometry_params,
         normal_params,
@@ -118,18 +133,12 @@ for i, (geometry_params, normal_params) in enumerate(geometries):
         rel_change = np.nan
 
     converged = rel_change < tol
-
+    
     # -----------------------------------
     # Compute phase spectrum
     # -----------------------------------
 
-    phis, Rs = compute_phase(
-        geometry_func,
-        geometry_params,
-        lambdas,
-        normal_params,
-        DBR_PAIRS
-    )
+    phis, Rs, Ts, sums = compute_phase_and_reflectance(geometry_func, geometry_params, lambdas, normal_params, DBR_PAIRS)
 
     if phis is None:
         continue
@@ -140,47 +149,38 @@ for i, (geometry_params, normal_params) in enumerate(geometries):
     # PLOT
     # -----------------------------------
 
-    fig, ax = plt.subplots(3, 1, figsize=(6,10))
+    fig, ax = plt.subplots(3, 1, figsize=(6,12))
 
-    # Phase
+    # -----------------------------------
+    # Original Phase
+    # -----------------------------------
+
     ax[0].plot(lambdas, phis, linewidth=2)
     ax[0].set_title("Phase")
     ax[0].set_xlabel("Wavelength (µm)")
     ax[0].set_ylabel("Phase (rad)")
 
-    # Reflectance
+    
+    
     ax[1].plot(lambdas, Rs, linewidth=2)
     ax[1].set_title("Reflectance")
     ax[1].set_xlabel("Wavelength (µm)")
-    ax[1].set_ylabel("R")
-
-    # Convergence plot
+    ax[1].set_ylabel("Reflectance")
+    # -----------------------------------
+    # RCWA convergence
+    # -----------------------------------
+    
     ax[2].plot(nG_list, phase_array, marker='o', linewidth=2)
     ax[2].set_title("RCWA Convergence")
     ax[2].set_xlabel("Number of Fourier Harmonics (nG)")
     ax[2].set_ylabel("Δφ (rad)")
+    
 
-    # -----------------------------------
-    # Convergence text box
-    # -----------------------------------
 
-    textstr = "\n".join([
-        f"Last Δφ = {phase_array[-1]:.4f}",
-        f"Δ change = {rel_change:.3e}",
-        f"Tolerance = {tol}",
-        f"Converged = {converged}"
-    ])
+    
+    
 
-    ax[2].text(
-        0.02,
-        0.98,
-        textstr,
-        transform=ax[2].transAxes,
-        fontsize=9,
-        verticalalignment='top',
-        bbox=dict(boxstyle="round", facecolor="white", alpha=0.8)
-    )
-
+    
     plt.tight_layout()
 
     filename = os.path.join(output_folder, f"geometry_{i}.png")

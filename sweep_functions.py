@@ -11,7 +11,14 @@ from rcwa_machinery import *
 from plot_spectra import *
 
 
+'''
+This file contains functions for performing parameter sweeps and convergence tests on RCWA simulations.:
+1. Sweep individual geometry parameters (radius, width, gap, etc.)
+   → Visualize how reflectance spectrum and phase changes
+2. Support multiple geometry types (cylinder, ellipse, ring, cross, etc.)
+3. Perform convergence tests to ensure simulation accuracy
 
+'''
 
 
 
@@ -25,8 +32,13 @@ def coarse_sweep_1D(geometry_func,
                     normal_params):
 
     """
-    Sweeps a single parameter while keeping others fixed.
-    Plots reflectance spectrum for each value.
+    Performs a 1D parameter sweep.
+
+    - Varies a single geometry parameter while keeping others fixed
+    - Computes reflectance spectrum for each value
+    - Plots reflectance vs wavelength
+
+    Useful for understanding parameter sensitivity.
     """
 
     plt.figure(figsize=(7,5))
@@ -62,6 +74,15 @@ def coarse_sweep_1D(geometry_func,
 
 def sweep_cylinder_radius(geometry_func,lambdas, normal_params,geometry_params, eps):
 
+
+
+
+    """
+    Sweeps cylinder radius and plots reflectance spectra.
+
+    - Uses coarse_sweep_1D internally
+    - Helps analyze effect of radius on optical response
+    """
     
 
     base_params = {
@@ -87,6 +108,15 @@ def sweep_cylinder_radius(geometry_func,lambdas, normal_params,geometry_params, 
 
 def sweep_ellipse_rx(geometry_func,lambdas, normal_params, geometry_params, eps):
 
+
+
+    """
+    Sweeps ellipse x-radius (rx).
+
+    - Keeps other parameters fixed
+    - Studies anisotropic geometry effects
+    """
+
     base_params = {
         "rx": 0.2,
         "ry": 0.15,
@@ -110,6 +140,16 @@ def sweep_ellipse_rx(geometry_func,lambdas, normal_params, geometry_params, eps)
 
 def sweep_ring_outer(geometry_func,lambdas, normal_params, geometry_params, eps):
 
+
+
+    """
+    Sweeps outer radius of a ring structure.
+
+    - Inner radius is fixed
+    - Shows effect of ring thickness
+    """
+
+
     base_params = {
         "r_inner": 0.15,
         "r_outer": 0.25,
@@ -132,6 +172,14 @@ def sweep_ring_outer(geometry_func,lambdas, normal_params, geometry_params, eps)
 
 
 def sweep_double_ring(geometry_func,lambdas, normal_params, geometry_params, eps):
+
+
+    """
+    Sweeps inner radius parameter (r1) of a double-ring structure.
+
+    - Other ring radii remain fixed
+    - Useful for multi-ring designs
+    """
 
     base_params = {
         "r1": 0.1,
@@ -160,6 +208,13 @@ def sweep_double_ring(geometry_func,lambdas, normal_params, geometry_params, eps
 
 def sweep_cross_width(geometry_func,lambdas, normal_params, geometry_params, eps):
 
+
+    """
+    Sweeps width of a cross-shaped structure.
+
+    - Evaluates how arm thickness affects reflectance
+    """
+
     base_params = {
         "width": 0.1,
         "eps": eps
@@ -181,6 +236,16 @@ def sweep_cross_width(geometry_func,lambdas, normal_params, geometry_params, eps
 
 
 def sweep_square_frame(geometry_func,lambdas, normal_params, geometry_params, eps):
+
+
+
+    """
+    Sweeps outer width of a square frame.
+
+    - Inner width is fixed
+    - Controls frame thickness
+    """
+
 
     base_params = {
         "w_outer": 0.35,
@@ -206,6 +271,15 @@ def sweep_square_frame(geometry_func,lambdas, normal_params, geometry_params, ep
 
 def sweep_diagonal_period(geometry_func,lambdas, normal_params, geometry_params, eps):
 
+
+    """
+    Sweeps lattice period along diagonal direction.
+
+    - Studies effect of periodic spacing
+    """
+
+
+
     base_params = {
         "period": 0.3,
         "eps": eps
@@ -229,6 +303,13 @@ def sweep_diagonal_period(geometry_func,lambdas, normal_params, geometry_params,
 
 def sweep_split_gap(geometry_func,lambdas, normal_params, geometry_params, eps):
 
+    """
+    Sweeps gap size in a split structure.
+
+    - Useful for studying coupling effects
+    """
+
+
     base_params = {
         "r": 0.25,
         "gap": 0.03,
@@ -250,7 +331,11 @@ def sweep_split_gap(geometry_func,lambdas, normal_params, geometry_params, eps):
 
 def sweep_double_cylinder_shift(geometry_func,lambdas, normal_params , geometry_params, eps):
 
-    
+    """
+    Sweeps relative shift between two cylinders.
+
+    - Studies symmetry breaking effects
+    """
 
     base_params = {
         "r1": 0.22,
@@ -276,6 +361,19 @@ def sweep_double_cylinder_shift(geometry_func,lambdas, normal_params , geometry_
 
 
 def check_convergence_linear(geometry_params,normal_params,geometry_func,lambdas, nG_list):
+
+
+
+    """
+    Performs convergence test using phase difference.
+
+    - Computes phase at two wavelengths
+    - Measures phase difference for different nG values
+    - Checks stability as nG increases
+
+    Returns:
+        phase differences for each nG
+    """
 
     phase1 = []
 
@@ -324,6 +422,18 @@ def check_convergence_cubic(
     nG_list
 ):
 
+
+
+    """
+    Performs convergence test using cubic phase fitting.
+
+    - Fits phase vs wavelength to a cubic polynomial
+    - Extracts coefficients and RMS error
+    - Evaluates simulation smoothness and stability
+
+    Returns:
+        List of (nG, cubic, quadratic, linear coeffs, RMS error, avg reflectance)
+    """
     results = []
 
     for nG in nG_list:

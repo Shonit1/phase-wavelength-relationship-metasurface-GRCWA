@@ -13,28 +13,28 @@ from loss_functions import *
 from sweep_functions import *
 
 
-# -------------------------------
-# Constants
-# -------------------------------
 
-lambda0 = 1.5
-hs_dbr = lambda0/(4*3.4778)
-hs_SiO2_dbr = lambda0/(4*1.45)
+'''This file performs inverse design using CMA-ES optimization of a double cylinder metasurface pattern. Other geometric functions
+can be used but you will have to tweak the settings of the optimization (initial guess, bounds, etc.)
+It automatically saves the best geometry found during optimization to a TXT file.
 
-lambdas = np.linspace(1.49, 1.505, 30)
-# Initial Guess (now in u-space)
-# -------------------------------
+Some loss functions have the option to save good geometries during optimization. This is useful for exploring interesting geometries.
+
+'''
+
+
+
+
+
+
 
 x0 = np.array([
-    0.2,   # r1
-    0.15,  # r2
-    0.5,   # d
-    1.0,   # a
-    0.5    # hpattern
+    0.22373427, 0.3, 0.32733816,  # d
+    0.87750846, 1.7    # hpattern
 ])
 
 
-sigma0 = 0.1
+sigma0 = 1
 
 # -------------------------------
 # CMA bounds (for u variables)
@@ -42,8 +42,8 @@ sigma0 = 0.1
 
 opts = {
     "bounds": [
-        [0.05, 0, 0.05, 0.8, 0.1],   # lower
-        [0.45, 0.45, 0.5, 1.2, 0.8]     # upper
+        [0.05, 0.05, 0, 0.5, 1.5],   # lower
+        [0.45, 0.45, 0.5, 1, 8]     # upper
     ],
     "popsize": 16,
     "maxiter": 40,
@@ -86,7 +86,7 @@ def is_valid_geometry(r1, r2, d, a):
     return True
 
 
-target_slope = 150
+target_slope = 230
 
 # -------------------------------
 # Objective
@@ -102,16 +102,16 @@ def objective(x):
 
     geometry_params, normal_params = decode(x)
 
-    return loss_three_region_polyfit_trans(
+    return loss_target_slope(
     get_epgrid_double_cylinder_d_new,
     geometry_params,
     normal_params,
     lambdas,
-    DBR_PAIRS,
-    w_outer=1.0,
-    w_center=1.0,
-    w_trans=10.0,
-    save_file="good_cubic_geometries.txt"
+    target_slope,
+    slope_control=0,   
+    alpha=0,             # linearity weight
+    beta=0,               # reflectance weight
+    save_filename="good_geometries3.txt"
 )
 
 # -------------------------------

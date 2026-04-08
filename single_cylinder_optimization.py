@@ -17,17 +17,44 @@ from sweep_functions import *
 # Constants
 # -------------------------------
 
-lambda0 = 1.5
-hs_dbr = lambda0/(4*3.4778)
-hs_SiO2_dbr = lambda0/(4*1.45)
+'''
+"""
+This script performs optimization of a single cylinder structure using RCWA and CMA-ES.
 
-lambdas = np.linspace(1.5, 1.520, 30)
+Goal:
+- Find optimal geometric parameters (radius, lattice constant, height)
+  of a periodic structure 
+- Such that its optical response (reflection phase / spectrum)
+  matches a desired target behavior
+
+Main workflow:
+1. Define physical constants and wavelength range
+2. Initialize design parameters and bounds
+3. Convert optimization variables → physical geometry
+4. Define an objective (loss) based on optical response
+5. Use CMA-ES to iteratively optimize parameters
+6. Save best geometry during optimization
+7. Plot final optimized spectrum
+
+Key idea:
+→ This is an inverse design loop:
+   geometry → RCWA simulation → loss → optimization → improved geometry
+"""
+
+'''
+
+
+
+
+
+
+
 # Initial Guess (now in u-space)
 # -------------------------------
 
 x0 = np.array([
     0.2,   # r
-    1.0,   # a
+    0.7,   # a
     0.5    # hpattern
 ])
 
@@ -39,8 +66,8 @@ sigma0 = 0.1
 
 opts = {
     "bounds": [
-        [0.05, 0.8, 0.1],   # lower: r, a, hpattern
-        [0.45, 1.2, 0.8]    # upper
+        [0.05, 0.5, 0.1],   # lower: r, a, hpattern
+        [0.45, 1, 0.8]    # upper
     ],
     "popsize": 16,
     "maxiter": 40,
@@ -70,7 +97,6 @@ def is_valid_geometry(r, a):
     return True
 
 
-target_slope = 150
 
 # -------------------------------
 # Objective
@@ -79,20 +105,22 @@ target_slope = 150
 def objective(x):
 
     r, a, hpattern = x
-
+    
     if not is_valid_geometry(r, a):
         return 1e6
 
     geometry_params, normal_params = decode(x)
 
-    return loss_max_slope_only(
-        get_epgrid_single_cylinder,
-        geometry_params,
-        normal_params,
-        lambdas,
-        alpha=100.0,
-        save_filename="good_geometries.txt"
-    )
+    return loss_three_region_quadfit5_trans_freq(
+    get_epgrid_single_cylinder,
+    geometry_params,
+    normal_params,
+    lambdas,
+    DBR_PAIRS,
+    w_curve=1.0,
+    w_fit=100.0,
+    save_file="good_quadratic_geometries5.txt"
+)
 # -------------------------------
 # Run CMA
 # -------------------------------

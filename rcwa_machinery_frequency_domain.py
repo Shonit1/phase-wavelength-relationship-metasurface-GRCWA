@@ -9,12 +9,24 @@ from rcwa_machinery import *
 
 
 
+
+
+'''Here you have rcwa functions specifically designed for frequency domain simulations. There is not much difference, just that
+the inputs and outputs may differ to rcwa_machinery.py.'''
+
+
+
+
+
+
 def rcwa_obj_f(geometry_func,geometry_params,f,normal_params,DBR_PAIRS):
     
     L10,L20,hpattern,hs_dbr,hsio2_dbr = normal_params
 
     L1 = [L10, 0]
     L2 = [0, L20]
+
+    
     lam = 1/f
     eps_si = epsilon_lambda(lam)
     obj = grcwa.obj(nG,L1,L2,f,theta,phi,verbose=0)
@@ -23,9 +35,11 @@ def rcwa_obj_f(geometry_func,geometry_params,f,normal_params,DBR_PAIRS):
     obj.Add_LayerUniform(0.1, eair)
     obj.Add_LayerGrid(hpattern, Nx, Ny)
 
+    
     for _ in range(DBR_PAIRS):
-            obj.Add_LayerUniform(hsio2_dbr, esio2)
-            obj.Add_LayerUniform(hs_dbr, eps_si)
+            
+            obj.Add_LayerUniform(hsio2_dbr, eps_si)
+            obj.Add_LayerUniform(hs_dbr, esio2)
 
     obj.Add_LayerUniform(0.1, esio2)
 

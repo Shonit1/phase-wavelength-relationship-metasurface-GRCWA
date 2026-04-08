@@ -13,15 +13,26 @@ from plot_spectra import *
 from loss_functions import *
 from sweep_functions import *
 
-# -------------------------------
-# Constants
-# -------------------------------
 
-lambda0 = 1.5
-hs_dbr = lambda0/(4*3.4778)
-hs_SiO2_dbr = lambda0/(4*1.45)
 
-lambdas = np.concatenate([np.linspace(1.49, 1.496, 20), np.linspace(1.496, 1.505, 20)])
+'''
+This file performs inverse design using CMA-ES optimization
+
+It:
+
+Defines a 3×3 metasurface pattern
+Runs RCWA simulations
+Uses a loss function (physics target)
+Optimizes parameters to find the best geometry
+
+'''
+
+
+
+
+
+
+
 
 # -------------------------------
 # Initial Guess (11 parameters)
@@ -34,7 +45,7 @@ x0 = np.array([
     0.96542485, 0.390            # height h
 ])
 
-sigma0 = 0.2
+sigma0 = 1
 
 # -------------------------------
 # CMA bounds
@@ -75,7 +86,7 @@ def decode(x):
 # -------------------------------
 
 def geometry_wrapper(pattern, eps, L1, L2):
-    return get_epgrid_3x3(pattern, eps, L1, L2)
+    return get_epgrid_3x3_new(pattern, eps, L1, L2)
 
 
 # -------------------------------
@@ -93,17 +104,15 @@ def objective(x):
     
     geometry_params, normal_params = decode(x)
 
-    loss =  loss_center_symmetric_quadratic(
-    geometry_wrapper,
+    loss =  loss_three_region_quadfit6_trans_freq(
+    get_epgrid_double_cylinder_d_new,
     geometry_params,
     normal_params,
     lambdas,
     DBR_PAIRS,
-    center_lambda=1.496,
-    w_slope=50,
-    w_sym=20,
-    w_refl=10,
-    save_file="good_quadratic_geometries_centered.txt"
+    w_curve=1.0,
+    w_fit=0,
+    save_file="good_quadratic_geometries7.txt"
 )
 
     return loss + 5.0*binary_penalty
